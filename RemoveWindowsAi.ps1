@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$EnableLogging,
     [switch]$nonInteractive,
     [ValidateSet('DisableRegKeys',          
@@ -83,7 +83,13 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
         
     }
 
-    $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1'))) $($paramStr -join ' ')`""
+    if ($PSCommandPath) {
+        # Preserve local/fork changes when elevating a downloaded script file.
+        $arglist = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $($paramStr -join ' ')"
+    }
+    else {
+        $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1'))) $($paramStr -join ' ')`""
+    }
     Start-Process PowerShell.exe -ArgumentList $arglist -Verb RunAs
     exit	
 }
@@ -3394,7 +3400,7 @@ function Create-ScriptShortcut {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut("$desktopPath\RemoveWindowsAI.lnk")
         $Shortcut.TargetPath = $psPath
-        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1')))`""
+        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1')))`""
         $Shortcut.IconLocation = $icoPath
         $Shortcut.Save()
         #runasadmin
@@ -3409,7 +3415,7 @@ function Create-ScriptShortcut {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut("$startPath\RemoveWindowsAI.lnk")
         $Shortcut.TargetPath = $psPath
-        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1')))`""
+        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1')))`""
         $Shortcut.IconLocation = $icoPath
         $Shortcut.Save()
         #runasadmin
@@ -4079,6 +4085,77 @@ else {
         'Disable-DefenderAI'             = 'Disables Windows Defender AI Platform Host process and features.'
     }
 
+    $traditionalChineseDescriptions = @{
+        'Disable-Registry-Keys'          = '透過修改登錄機碼停用 Copilot 與 Recall，包括 Windows 搜尋整合、Edge Copilot、Paint AI 圖像建立功能，以及多項 AI 相關隱私設定。'
+        'Prevent-AI-Package-Reinstall'   = '安裝自訂 Windows Update 套件，防止 Windows Update 與 DISM 重新安裝 AI 套件。'
+        'Disable-Copilot-Policies'       = '修改 Windows 整合服務區域原則 JSON 檔案，將 Copilot 相關原則的預設狀態設為停用。'
+        'Remove-AI-Appx-Packages'        = '使用進階移除方式移除 Copilot、AIX、CoreAI 與各種 WindowsWorkload AI 元件等 AppX 套件。'
+        'Remove-Recall-Optional-Feature' = '從系統中完整移除 Recall 選用功能及其承載內容。'
+        'Remove-AI-CBS-Packages'         = '取消隱藏並強制移除元件式服務 (CBS) 中其他隱藏的 AI 套件。'
+        'Remove-AI-Files'                = '移除 SystemApps、WindowsApps 與其他系統目錄中的 AI 相關檔案，以及機器學習 DLL 和 Copilot 安裝程式。'
+        'Hide-AI-Components'             = '修改 SettingsPageVisibility 原則，隱藏 Windows 設定中的「AI 元件」頁面。'
+        'Disable-Notepad-Rewrite'        = '透過登錄機碼與群組原則停用 Windows 記事本的 AI「重寫」功能。'
+        'Remove-WindowsAI-Tasks'         = '從工作排程器移除 Windows AI 排程工作，避免 AI 資料收集程序執行。'
+        'Update-Cleanup-Check'           = '建立在登入時靜默執行的排程工作；偵測到 Windows 更新後，會清除新安裝的 AI 功能。'
+        'Disable-DefenderAI'             = '停用 Windows Defender AI Platform Host 程序與相關功能。'
+    }
+
+    $functionLabels = @{
+        'en-US' = @{
+            'Disable-Registry-Keys' = 'Disable Registry Keys'; 'Prevent-AI-Package-Reinstall' = 'Prevent AI Package Reinstall'
+            'Disable-Copilot-Policies' = 'Disable Copilot Policies'; 'Remove-AI-Appx-Packages' = 'Remove AI Appx Packages'
+            'Remove-Recall-Optional-Feature' = 'Remove Recall Optional Feature'; 'Remove-AI-CBS-Packages' = 'Remove AI CBS Packages'
+            'Remove-AI-Files' = 'Remove AI Files'; 'Hide-AI-Components' = 'Hide AI Components'
+            'Disable-Notepad-Rewrite' = 'Disable Notepad Rewrite'; 'Remove-WindowsAI-Tasks' = 'Remove Windows AI Tasks'
+            'Update-Cleanup-Check' = 'Update Cleanup Check'; 'Disable-DefenderAI' = 'Disable Defender AI'
+            'Install-Classic-Photoviewer' = 'Install Classic Photoviewer'; 'Install-Classic-Mspaint' = 'Install Classic Mspaint'
+            'Install-Classic-SnippingTool' = 'Install Classic Snipping Tool'; 'Install-Classic-Notepad' = 'Install Classic Notepad'
+            'Install-Photos-Legacy' = 'Install Photos Legacy'
+        }
+        'zh-TW' = @{
+            'Disable-Registry-Keys' = '停用 AI 相關登錄機碼'; 'Prevent-AI-Package-Reinstall' = '防止重新安裝 AI 套件'
+            'Disable-Copilot-Policies' = '停用 Copilot 原則'; 'Remove-AI-Appx-Packages' = '移除 AI AppX 套件'
+            'Remove-Recall-Optional-Feature' = '移除 Recall 選用功能'; 'Remove-AI-CBS-Packages' = '移除 AI CBS 套件'
+            'Remove-AI-Files' = '移除 AI 檔案'; 'Hide-AI-Components' = '隱藏 AI 元件設定'
+            'Disable-Notepad-Rewrite' = '停用記事本 AI 重寫'; 'Remove-WindowsAI-Tasks' = '移除 Windows AI 排程工作'
+            'Update-Cleanup-Check' = '啟用更新後清理檢查'; 'Disable-DefenderAI' = '停用 Defender AI'
+            'Install-Classic-Photoviewer' = '安裝傳統 Windows 相片檢視器'; 'Install-Classic-Mspaint' = '安裝傳統小畫家'
+            'Install-Classic-SnippingTool' = '安裝傳統剪取工具'; 'Install-Classic-Notepad' = '安裝傳統記事本'
+            'Install-Photos-Legacy' = '安裝舊版相片應用程式'
+        }
+    }
+
+    $uiText = @{
+        'en-US' = @{
+            WindowTitle = 'Remove Windows AI - by @zoicware'; Title = 'Remove Windows AI'; Language = 'Language:'
+            ClassicApps = 'Install Classic Windows Apps'; Warning = 'Warning: This option may break Windows Update'
+            RevertMode = 'Revert Mode:'; BackupMode = 'Backup Mode:'; DesktopShortcut = 'Desktop Shortcut'; StartMenuShortcut = 'Start Menu Shortcut'
+            Cancel = 'Cancel'; Apply = 'Apply'; Processing = 'Processing...'; Initializing = 'Initializing...'; Executing = 'Executing: {0}'
+            CreatingShortcuts = 'Creating shortcuts...'; Completed = 'Completed successfully!'; NothingSelected = 'No options selected.'
+            NothingTitle = 'Nothing to Process'; CompleteTitle = 'Process Complete'; ErrorTitle = 'Error'; Error = 'An error occurred: {0}'
+            CompletePrompt = "AI removal process completed successfully!`n`nWould you like to restart your computer now to ensure all changes take effect?"
+            RevertTitle = 'Revert Mode'; RevertDescription = 'Revert Mode will undo changes made by this tool, restoring AI features and settings to their original state. Selected options above will be reverted/enabled when this mode is selected.'
+            BackupTitle = 'Backup Mode'; BackupDescription = 'Backup Mode keeps necessary files in your User directory allowing revert mode to work properly. Use this option while removing AI if you would like to fully revert the removal process.'
+            ShortcutTitle = 'Shortcut Options'; ShortcutDescription = 'Creates a shortcut that runs the latest version of this script from GitHub.'
+            MoreInfo = 'More information about {0}'; MoreInfoHelp = 'Opens a dialog describing this option'
+        }
+        'zh-TW' = @{
+            WindowTitle = '移除 Windows AI - 作者 @zoicware'; Title = '移除 Windows AI'; Language = '語言：'
+            ClassicApps = '安裝傳統 Windows 應用程式'; Warning = '警告：此選項可能會影響 Windows Update'
+            RevertMode = '還原模式：'; BackupMode = '備份模式：'; DesktopShortcut = '桌面捷徑'; StartMenuShortcut = '開始功能表捷徑'
+            Cancel = '取消'; Apply = '套用'; Processing = '處理中...'; Initializing = '正在初始化...'; Executing = '正在執行：{0}'
+            CreatingShortcuts = '正在建立捷徑...'; Completed = '已順利完成！'; NothingSelected = '尚未選取任何選項。'
+            NothingTitle = '沒有可處理的項目'; CompleteTitle = '處理完成'; ErrorTitle = '錯誤'; Error = '發生錯誤：{0}'
+            CompletePrompt = "AI 移除程序已順利完成！`n`n是否要立即重新啟動電腦，讓所有變更生效？"
+            RevertTitle = '還原模式'; RevertDescription = '還原模式會復原此工具所做的變更，將 AI 功能與設定恢復到原始狀態。啟用此模式後，上方選取的項目將被還原或重新啟用。'
+            BackupTitle = '備份模式'; BackupDescription = '備份模式會將還原所需的檔案保留在使用者目錄中。若日後希望完整還原移除程序，請在移除 AI 時啟用此選項。'
+            ShortcutTitle = '捷徑選項'; ShortcutDescription = '建立捷徑，從 GitHub 執行此腳本的最新版本。'
+            MoreInfo = '顯示「{0}」的詳細資訊'; MoreInfoHelp = '開啟此選項的說明對話框'
+        }
+    }
+
+    $initialLanguage = if ([System.Globalization.CultureInfo]::CurrentUICulture.Name -eq 'zh-TW') { 'zh-TW' } else { 'en-US' }
+
     $window = New-Object System.Windows.Window
     $window.Title = 'Remove Windows AI - by @zoicware'
     $window.Width = 600
@@ -4119,6 +4196,36 @@ else {
     $title.Margin = '0,20,0,0'
     [System.Windows.Controls.Grid]::SetRow($title, 0)
     $mainGrid.Children.Add($title) | Out-Null
+
+    $languagePanel = New-Object System.Windows.Controls.StackPanel
+    $languagePanel.Orientation = 'Horizontal'
+    $languagePanel.HorizontalAlignment = 'Right'
+    $languagePanel.VerticalAlignment = 'Center'
+    $languagePanel.Margin = '0,20,20,0'
+    [System.Windows.Controls.Grid]::SetRow($languagePanel, 0)
+
+    $languageLabel = New-Object System.Windows.Controls.TextBlock
+    $languageLabel.VerticalAlignment = 'Center'
+    $languageLabel.Margin = '0,0,8,0'
+    $languageLabel.Foreground = [System.Windows.Media.Brushes]::White
+    $languagePanel.Children.Add($languageLabel) | Out-Null
+
+    $languageComboBox = New-Object System.Windows.Controls.ComboBox
+    $languageComboBox.Width = 105
+    $languageComboBox.Height = 28
+    $languageComboBox.SelectedValuePath = 'Tag'
+    $englishLanguageItem = New-Object System.Windows.Controls.ComboBoxItem
+    $englishLanguageItem.Content = 'English'
+    $englishLanguageItem.Tag = 'en-US'
+    $traditionalChineseLanguageItem = New-Object System.Windows.Controls.ComboBoxItem
+    $traditionalChineseLanguageItem.Content = '繁體中文'
+    $traditionalChineseLanguageItem.Tag = 'zh-TW'
+    $languageComboBox.Items.Add($englishLanguageItem) | Out-Null
+    $languageComboBox.Items.Add($traditionalChineseLanguageItem) | Out-Null
+    $languageComboBox.SelectedValue = $initialLanguage
+    [System.Windows.Automation.AutomationProperties]::SetName($languageComboBox, 'Language / 語言')
+    $languagePanel.Children.Add($languageComboBox) | Out-Null
+    $mainGrid.Children.Add($languagePanel) | Out-Null
 
     $scrollViewer = New-Object System.Windows.Controls.ScrollViewer
     $scrollViewer.VerticalScrollBarVisibility = 'Auto'
@@ -4203,6 +4310,9 @@ else {
     $scrollViewer.Content = $stackPanel
 
     $checkboxes = @{}
+    $optionLabels = @{}
+    $optionInfoButtons = @{}
+    $warningTooltips = @()
     $functions = @(
         'Disable-Registry-Keys'          
         'Prevent-AI-Package-Reinstall'
@@ -4273,8 +4383,9 @@ else {
                     }
                 }
         
-                $description = $functionDescriptions[$funcName]
-                [System.Windows.MessageBox]::Show($description, $funcName, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                $language = [string]$languageComboBox.SelectedValue
+                $description = if ($language -eq 'zh-TW') { $traditionalChineseDescriptions[$funcName] } else { $functionDescriptions[$funcName] }
+                [System.Windows.MessageBox]::Show($description, $functionLabels[$language][$funcName], [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             })
     
         $checkboxPanel = New-Object System.Windows.Controls.StackPanel
@@ -4288,6 +4399,7 @@ else {
         $checkboxLabel.Foreground = [System.Windows.Media.Brushes]::White
         $checkboxLabel.VerticalAlignment = 'Center'
         $checkboxPanel.Children.Add($checkboxLabel) | Out-Null
+        $optionLabels[$func] = $checkboxLabel
 
         if ($unchecked -contains $func) {
             $warningIcon = New-Object System.Windows.Controls.TextBlock
@@ -4309,6 +4421,7 @@ else {
             $tooltip.BorderThickness = 1
             $tooltip.Padding = '6,4,6,4'
             $warningIcon.ToolTip = $tooltip
+            $warningTooltips += $tooltip
 
             $checkboxPanel.Children.Add($warningIcon) | Out-Null
         }
@@ -4322,6 +4435,7 @@ else {
         $checkbox.IsChecked = if ($unchecked -notcontains $func) { $true } else { $false }
         [System.Windows.Controls.DockPanel]::SetDock($checkbox, 'Left')
         $checkboxes[$func] = $checkbox
+        $optionInfoButtons[$func] = $infoButton
 
         #add aria labels for screen readers to info buttons
         [System.Windows.Automation.AutomationProperties]::SetName($infoButton, "More information about $friendlyName")
@@ -4478,6 +4592,17 @@ else {
         'Install-Photos-Legacy'        = 'Installs the legacy Windows Photos app from the Microsoft Store.'
     }
 
+    $traditionalChineseClassicAppsDescriptions = @{
+        'Install-Classic-Photoviewer'  = '安裝 Windows 7/8 的傳統 Windows 相片檢視器，讓你以傳統檢視器取代新版相片應用程式來瀏覽圖片。'
+        'Install-Classic-Mspaint'      = '安裝舊版 Windows 的傳統 Microsoft 小畫家。'
+        'Install-Classic-SnippingTool' = '安裝傳統剪取工具，取代新版剪取與繪圖應用程式。'
+        'Install-Classic-Notepad'      = '安裝 Windows 10 的傳統記事本，取代新版 UWP 版本。'
+        'Install-Photos-Legacy'        = '從 Microsoft Store 安裝舊版 Windows 相片應用程式。'
+    }
+    foreach ($entry in $traditionalChineseClassicAppsDescriptions.GetEnumerator()) {
+        $traditionalChineseDescriptions[$entry.Key] = $entry.Value
+    }
+
     $functionDescriptions += $classicAppsDescriptions
     foreach ($func in $classicAppsFunctions) {
         $optionContainer = New-Object System.Windows.Controls.DockPanel
@@ -4494,6 +4619,7 @@ else {
         $checkbox.IsChecked = $false  
         [System.Windows.Controls.DockPanel]::SetDock($checkbox, 'Left')
         $checkboxes[$func] = $checkbox
+        $optionLabels[$func] = $checkbox
     
         $infoButton = New-Object System.Windows.Controls.Button
         $infoButton.Content = '?'
@@ -4532,13 +4658,15 @@ else {
                     }
                 }
         
-                $description = $functionDescriptions[$funcName]
-                [System.Windows.MessageBox]::Show($description, $funcName, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                $language = [string]$languageComboBox.SelectedValue
+                $description = if ($language -eq 'zh-TW') { $traditionalChineseDescriptions[$funcName] } else { $functionDescriptions[$funcName] }
+                [System.Windows.MessageBox]::Show($description, $functionLabels[$language][$funcName], [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             })
 
         #add aria labels for screen readers to info buttons
         [System.Windows.Automation.AutomationProperties]::SetName($infoButton, "More information about $friendlyName")
         [System.Windows.Automation.AutomationProperties]::SetHelpText($infoButton, 'Opens a dialog describing this option')
+        $optionInfoButtons[$func] = $infoButton
     
         $optionContainer.Children.Add($checkbox) | Out-Null
         $optionContainer.Children.Add($infoButton) | Out-Null
@@ -4608,8 +4736,8 @@ else {
 '@
     $revertInfoButton.Template = [System.Windows.Markup.XamlReader]::Parse($revertInfoTemplate)
     $revertInfoButton.Add_Click({
-            $description = 'Revert Mode will undo changes made by this tool, restoring AI features and settings to their original state. Selected options above will be reverted/enabled when this mode is selected.'
-            [System.Windows.MessageBox]::Show($description, 'Revert Mode', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            $text = $uiText[[string]$languageComboBox.SelectedValue]
+            [System.Windows.MessageBox]::Show($text.RevertDescription, $text.RevertTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         })
 
     $togglePanel1.Children.Add($revertInfoButton) | Out-Null
@@ -4662,8 +4790,8 @@ else {
 '@
     $backupInfoButton.Template = [System.Windows.Markup.XamlReader]::Parse($backupInfoTemplate)
     $backupInfoButton.Add_Click({
-            $description = 'Backup Mode keeps necessary files in your User directory allowing revert mode to work properly, use this option while removing AI if you would like to fully revert the removal process.'
-            [System.Windows.MessageBox]::Show($description, 'Backup Mode', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            $text = $uiText[[string]$languageComboBox.SelectedValue]
+            [System.Windows.MessageBox]::Show($text.BackupDescription, $text.BackupTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         })
 
   
@@ -4716,8 +4844,8 @@ else {
     [System.Windows.Automation.AutomationProperties]::SetName($shortcutInfoButton, 'More information about shortcut options')
     [System.Windows.Automation.AutomationProperties]::SetHelpText($shortcutInfoButton, 'Opens a dialog describing this option')
     $shortcutInfoButton.Add_Click({
-            $description = 'Creates a shortcut that runs the latest version of this script from GitHub.'
-            [System.Windows.MessageBox]::Show($description, 'Shortcut Options', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            $text = $uiText[[string]$languageComboBox.SelectedValue]
+            [System.Windows.MessageBox]::Show($text.ShortcutDescription, $text.ShortcutTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         })
     $togglePanel3.Children.Add($shortcutInfoButton) | Out-Null
 
@@ -4864,7 +4992,7 @@ else {
 '@
     $githubButton.Template = [System.Windows.Markup.XamlReader]::Parse($githubTemplate)
     $githubButton.Add_Click({
-            Start-Process 'https://github.com/zoicware/RemoveWindowsAI'
+            Start-Process 'https://github.com/ma4980/RemoveWindowsAI'
         })
 
     $socialPanel.Children.Add($discordButton) | Out-Null
@@ -4924,6 +5052,7 @@ else {
 '@
     $applyButton.Template = [System.Windows.Markup.XamlReader]::Parse($applyTemplate)
     $applyButton.Add_Click({
+            $text = $uiText[[string]$languageComboBox.SelectedValue]
             Write-Status -msg 'Killing AI Processes...'
             #kill ai processes to ensure script runs smoothly
             $aiProcesses = @(
@@ -4945,7 +5074,7 @@ else {
             }
     
             $progressWindow = New-Object System.Windows.Window
-            $progressWindow.Title = 'Processing...'
+            $progressWindow.Title = $text.Processing
             $progressWindow.Width = 400
             $progressWindow.Height = 200
             $progressWindow.WindowStartupLocation = 'CenterOwner'
@@ -4958,7 +5087,7 @@ else {
             $progressWindow.Content = $progressGrid
     
             $progressText = New-Object System.Windows.Controls.TextBlock
-            $progressText.Text = 'Initializing...'
+            $progressText.Text = $text.Initializing
             $progressText.FontSize = 14
             $progressText.Foreground = [System.Windows.Media.Brushes]::Cyan
             $progressText.HorizontalAlignment = 'Center'
@@ -4977,7 +5106,7 @@ else {
     
             if ($selectedFunctions.Count -eq 0 -and !$desktopShortcutCheckbox.IsChecked -and !$startMenuShortcutCheckbox.IsChecked) {
                 $progressWindow.Close()
-                [System.Windows.MessageBox]::Show('No options selected.', 'Nothing to Process', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                [System.Windows.MessageBox]::Show($text.NothingSelected, $text.NothingTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
                 return
             }
     
@@ -4986,7 +5115,7 @@ else {
                     Create-RestorePoint
                 }
                 foreach ($func in $selectedFunctions) {
-                    $progressText.Text = "Executing: $($func.Replace('-', ' '))"
+                    $progressText.Text = $text.Executing -f $functionLabels[[string]$languageComboBox.SelectedValue][$func]
                     $progressWindow.UpdateLayout()
                     [System.Windows.Forms.Application]::DoEvents()
 
@@ -5014,17 +5143,17 @@ else {
                 }
 
                 if ($desktopShortcutCheckbox.IsChecked -or $startMenuShortcutCheckbox.IsChecked) {
-                    $progressText.Text = 'Creating shortcuts...'
+                    $progressText.Text = $text.CreatingShortcuts
                     $progressWindow.UpdateLayout()
                     [System.Windows.Forms.Application]::DoEvents()
                     Create-ScriptShortcut -Desktop:$desktopShortcutCheckbox.IsChecked -Start:$startMenuShortcutCheckbox.IsChecked
                 }
         
-                $progressText.Text = 'Completed successfully!'
+                $progressText.Text = $text.Completed
                 Start-Sleep -Seconds 2
                 $progressWindow.Close()
         
-                $result = [System.Windows.MessageBox]::Show("AI removal process completed successfully!`n`nWould you like to restart your computer now to ensure all changes take effect?", 'Process Complete', [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+                $result = [System.Windows.MessageBox]::Show($text.CompletePrompt, $text.CompleteTitle, [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
         
                 if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
                     #cleanup code
@@ -5056,10 +5185,58 @@ else {
             }
             catch {
                 $progressWindow.Close()
-                [System.Windows.MessageBox]::Show("An error occurred: $($_.Exception.Message)", 'Error', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                [System.Windows.MessageBox]::Show(($text.Error -f $_.Exception.Message), $text.ErrorTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
 
+
+    function Update-UILanguage {
+        param([ValidateSet('en-US', 'zh-TW')][string]$Language)
+
+        $text = $uiText[$Language]
+        $labels = $functionLabels[$Language]
+        $window.Title = $text.WindowTitle
+        $title.Text = $text.Title
+        $languageLabel.Text = $text.Language
+        $classicAppsHeader.Text = $text.ClassicApps
+        $toggleLabel1.Text = $text.RevertMode
+        $toggleLabel2.Text = $text.BackupMode
+        $desktopShortcutCheckbox.Content = $text.DesktopShortcut
+        $startMenuShortcutCheckbox.Content = $text.StartMenuShortcut
+        $cancelButton.Content = $text.Cancel
+        $applyButton.Content = $text.Apply
+
+        foreach ($func in $allFunctions) {
+            if ($optionLabels[$func] -is [System.Windows.Controls.TextBlock]) {
+                $optionLabels[$func].Text = $labels[$func]
+            }
+            else {
+                $optionLabels[$func].Content = $labels[$func]
+            }
+            [System.Windows.Automation.AutomationProperties]::SetName($optionInfoButtons[$func], ($text.MoreInfo -f $labels[$func]))
+            [System.Windows.Automation.AutomationProperties]::SetHelpText($optionInfoButtons[$func], $text.MoreInfoHelp)
+        }
+
+        foreach ($tooltip in $warningTooltips) {
+            $tooltip.Content = $text.Warning
+        }
+
+        [System.Windows.Automation.AutomationProperties]::SetName($revertModeToggle, $text.RevertTitle)
+        [System.Windows.Automation.AutomationProperties]::SetName($backupModeToggle, $text.BackupTitle)
+        [System.Windows.Automation.AutomationProperties]::SetName($revertInfoButton, ($text.MoreInfo -f $text.RevertTitle))
+        [System.Windows.Automation.AutomationProperties]::SetHelpText($revertInfoButton, $text.MoreInfoHelp)
+        [System.Windows.Automation.AutomationProperties]::SetName($backupInfoButton, ($text.MoreInfo -f $text.BackupTitle))
+        [System.Windows.Automation.AutomationProperties]::SetHelpText($backupInfoButton, $text.MoreInfoHelp)
+        [System.Windows.Automation.AutomationProperties]::SetName($shortcutInfoButton, ($text.MoreInfo -f $text.ShortcutTitle))
+        [System.Windows.Automation.AutomationProperties]::SetHelpText($shortcutInfoButton, $text.MoreInfoHelp)
+    }
+
+    $languageComboBox.Add_SelectionChanged({
+            if ($languageComboBox.SelectedValue) {
+                Update-UILanguage -Language ([string]$languageComboBox.SelectedValue)
+            }
+        })
+    Update-UILanguage -Language $initialLanguage
 
     $actionPanel.Children.Add($cancelButton) | Out-Null
     $actionPanel.Children.Add($applyButton) | Out-Null

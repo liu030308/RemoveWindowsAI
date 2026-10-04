@@ -76,12 +76,14 @@ The current 25H2 build of Windows 11 and future builds will include increasingly
 
  ### Launch with UI
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1")))
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1")))
  ```
+
+The UI includes an English / 繁體中文 language selector. Traditional Chinese is selected automatically when Windows uses the `zh-TW` UI culture, and the language can be changed at any time from the top-right selector.
+
  ### Compact Command:
- ##### Link shortened using open source link shortener: https://kutt.to/
  ```PowerShell
- & ([scriptblock]::Create((irm 'https://kutt.to/RWAI')))
+ irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1' | iex
  ```
 
 
@@ -95,23 +97,67 @@ The current 25H2 build of Windows 11 and future builds will include increasingly
 
 &nbsp;
 
+## 繁體中文說明
+
+此版本已加入繁體中文介面。當 Windows 顯示語言為繁體中文 (`zh-TW`) 時，程式會自動使用繁體中文；也可以從視窗右上角的語言選單隨時切換 English／繁體中文。
+
+> [!WARNING]
+> 請使用「以系統管理員身分執行」的 **Windows PowerShell 5.1 (`powershell.exe`)**。請勿使用 PowerShell 7 (`pwsh.exe`)，否則可能發生相容性問題。
+
+### 啟動圖形介面
+
+```PowerShell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1")))
+```
+
+### 精簡啟動指令
+
+```PowerShell
+irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1' | iex
+```
+
+### 常用命令列範例
+
+執行全部移除選項：
+
+```PowerShell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
+```
+
+啟用備份模式後執行全部選項（會建立系統還原點）：
+
+```PowerShell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
+```
+
+還原先前套用的變更：
+
+```PowerShell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
+```
+
+> [!CAUTION]
+> 此工具會修改系統元件、登錄機碼、排程工作與 Windows 套件。建議先啟用備份模式、建立完整備份，並在了解各選項用途後再執行。由於工具需要進階系統權限，部分防毒軟體可能會攔截相關檔案。
+
+---
+
 ### Command Line Options
 
 **Run in Non-Interactive Mode with All Options**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
  ```
 
 --- 
 
 **Run with Specific Options Example**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies 
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies
  ```
 
  **Run with Specific Options Excluded Example**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -ExcludeOptions -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies 
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -ExcludeOptions -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies
  ```
 
 **All Possible Options:**
@@ -131,7 +177,7 @@ UpdateCleanupCheck
 
 **Run Install Classic Apps**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -InstallClassicApps photoviewer,mspaint,snippingtool,notepad  
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -InstallClassicApps photoviewer,mspaint,snippingtool,notepad
  ```
 
 **All Possible Options:**
@@ -151,7 +197,7 @@ photoslegacy
 > 
 > **This creates a restore point for you**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
  ```
 
 ---
@@ -159,7 +205,7 @@ photoslegacy
 **Revert Changes**
 
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
  ```
 
 ---
@@ -169,7 +215,7 @@ photoslegacy
 Given that Microsoft are continually updating and adding new AI features this script will attempt to stay updated for the newest stable build.
 
 You can view the newest updates to the script here:
-https://github.com/zoicware/RemoveWindowsAI/commits/main/
+https://github.com/ma4980/RemoveWindowsAI/commits/main/
 
  > [!NOTE]  
 > Any feature added to an Insider build will not be added to this script till it's added to the latest stable release
