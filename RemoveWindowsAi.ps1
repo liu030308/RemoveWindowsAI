@@ -266,8 +266,12 @@ function Run-Trusted([String]$command, $psversion) {
 
         #run the command
         sc.exe start TrustedInstaller | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to start the temporary TrustedInstaller command (exit code $LASTEXITCODE)."
+        $startExitCode = $LASTEXITCODE
+        # The temporary binary is PowerShell rather than a real service and
+        # therefore does not call StartServiceCtrlDispatcher. SCM reports 1053
+        # even though the command process was launched successfully.
+        if ($startExitCode -notin @(0, 1053)) {
+            throw "Failed to start the temporary TrustedInstaller command (exit code $startExitCode)."
         }
     }
     catch {
