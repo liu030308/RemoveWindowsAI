@@ -5276,7 +5276,19 @@ else {
 </ControlTemplate>
 '@
     $applyButton.Template = [System.Windows.Markup.XamlReader]::Parse($applyTemplate)
+    $script:uiProcessing = $false
     $applyButton.Add_Click({
+            # DoEvents below keeps the progress window repainting, but it can
+            # also dispatch another click. Guard the whole operation so the
+            # removal workflow cannot be started more than once at a time.
+            if ($script:uiProcessing) {
+                return
+            }
+            $script:uiProcessing = $true
+            $applyButton.IsEnabled = $false
+            $cancelButton.IsEnabled = $false
+            $window.Cursor = [System.Windows.Input.Cursors]::Wait
+
             $text = $uiText[[string]$languageComboBox.SelectedValue]
             Write-Status -msg 'Killing AI Processes...'
             #kill ai processes to ensure script runs smoothly
@@ -5332,6 +5344,10 @@ else {
             if ($selectedFunctions.Count -eq 0 -and !$desktopShortcutCheckbox.IsChecked -and !$startMenuShortcutCheckbox.IsChecked) {
                 $progressWindow.Close()
                 [System.Windows.MessageBox]::Show($text.NothingSelected, $text.NothingTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                $script:uiProcessing = $false
+                $applyButton.IsEnabled = $true
+                $cancelButton.IsEnabled = $true
+                $window.Cursor = [System.Windows.Input.Cursors]::Arrow
                 return
             }
     
@@ -5411,6 +5427,14 @@ else {
             catch {
                 $progressWindow.Close()
                 [System.Windows.MessageBox]::Show(($text.Error -f $_.Exception.Message), $text.ErrorTitle, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            }
+            finally {
+                $script:uiProcessing = $false
+                if ($window.IsVisible) {
+                    $applyButton.IsEnabled = $true
+                    $cancelButton.IsEnabled = $true
+                    $window.Cursor = [System.Windows.Input.Cursors]::Arrow
+                }
             }
         })
 
