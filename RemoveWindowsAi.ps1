@@ -88,7 +88,7 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
         $arglist = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $($paramStr -join ' ')"
     }
     else {
-        $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1'))) $($paramStr -join ' ')`""
+        $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/liu030308/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1'))) $($paramStr -join ' ')`""
     }
     Start-Process PowerShell.exe -ArgumentList $arglist -Verb RunAs
     exit	
@@ -3450,7 +3450,7 @@ function Create-ScriptShortcut {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut("$desktopPath\RemoveWindowsAI.lnk")
         $Shortcut.TargetPath = $psPath
-        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1')))`""
+        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/liu030308/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1')))`""
         $Shortcut.IconLocation = $icoPath
         $Shortcut.Save()
         #runasadmin
@@ -3465,7 +3465,7 @@ function Create-ScriptShortcut {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut("$startPath\RemoveWindowsAI.lnk")
         $Shortcut.TargetPath = $psPath
-        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1')))`""
+        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/liu030308/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1')))`""
         $Shortcut.IconLocation = $icoPath
         $Shortcut.Save()
         #runasadmin
@@ -4177,7 +4177,7 @@ else {
 
     $uiText = @{
         'en-US' = @{
-            WindowTitle = 'Remove Windows AI - by @zoicware'; Title = 'Remove Windows AI'; Language = 'Language:'
+            WindowTitle = 'Remove Windows AI - by @zoicware | Translator @liu030308'; Title = 'Remove Windows AI'; Language = 'Language:'
             ClassicApps = 'Install Classic Windows Apps'; Warning = 'Warning: This option may break Windows Update'
             RevertMode = 'Revert Mode:'; BackupMode = 'Backup Mode:'; DesktopShortcut = 'Desktop Shortcut'; StartMenuShortcut = 'Start Menu Shortcut'
             Cancel = 'Cancel'; Apply = 'Apply'; Processing = 'Processing...'; Initializing = 'Initializing...'; Executing = 'Executing: {0}'
@@ -4187,10 +4187,10 @@ else {
             RevertTitle = 'Revert Mode'; RevertDescription = 'Revert Mode will undo changes made by this tool, restoring AI features and settings to their original state. Selected options above will be reverted/enabled when this mode is selected.'
             BackupTitle = 'Backup Mode'; BackupDescription = 'Backup Mode keeps necessary files in your User directory allowing revert mode to work properly. Use this option while removing AI if you would like to fully revert the removal process.'
             ShortcutTitle = 'Shortcut Options'; ShortcutDescription = 'Creates a shortcut that runs the latest version of this script from GitHub.'
-            MoreInfo = 'More information about {0}'; MoreInfoHelp = 'Opens a dialog describing this option'
+            MoreInfo = 'More information about {0}'; MoreInfoHelp = 'Opens a dialog describing this option'; AlreadyApplied = ' (already disabled/removed)'
         }
         'zh-TW' = @{
-            WindowTitle = '移除 Windows AI - 作者 @zoicware'; Title = '移除 Windows AI'; Language = '語言：'
+            WindowTitle = '移除 Windows AI - 作者 @zoicware｜翻譯者 @liu030308'; Title = '移除 Windows AI'; Language = '語言：'
             ClassicApps = '安裝傳統 Windows 應用程式'; Warning = '警告：此選項可能會影響 Windows Update'
             RevertMode = '還原模式：'; BackupMode = '備份模式：'; DesktopShortcut = '桌面捷徑'; StartMenuShortcut = '開始功能表捷徑'
             Cancel = '取消'; Apply = '套用'; Processing = '處理中...'; Initializing = '正在初始化...'; Executing = '正在執行：{0}'
@@ -4200,14 +4200,14 @@ else {
             RevertTitle = '還原模式'; RevertDescription = '還原模式會復原此工具所做的變更，將 AI 功能與設定恢復到原始狀態。啟用此模式後，上方選取的項目將被還原或重新啟用。'
             BackupTitle = '備份模式'; BackupDescription = '備份模式會將還原所需的檔案保留在使用者目錄中。若日後希望完整還原移除程序，請在移除 AI 時啟用此選項。'
             ShortcutTitle = '捷徑選項'; ShortcutDescription = '建立捷徑，從 GitHub 執行此腳本的最新版本。'
-            MoreInfo = '顯示「{0}」的詳細資訊'; MoreInfoHelp = '開啟此選項的說明對話框'
+            MoreInfo = '顯示「{0}」的詳細資訊'; MoreInfoHelp = '開啟此選項的說明對話框'; AlreadyApplied = '（已停用／移除）'
         }
     }
 
     $initialLanguage = if ([System.Globalization.CultureInfo]::CurrentUICulture.Name -eq 'zh-TW') { 'zh-TW' } else { 'en-US' }
 
     $window = New-Object System.Windows.Window
-    $window.Title = 'Remove Windows AI - by @zoicware'
+    $window.Title = 'Remove Windows AI - by @zoicware | Translator @liu030308'
     $window.Width = 600
     $window.Height = 700
     $window.WindowStartupLocation = 'CenterScreen'
@@ -4359,6 +4359,153 @@ else {
     $stackPanel.Orientation = 'Vertical'
     $scrollViewer.Content = $stackPanel
 
+    function Get-RegistryValueSafe {
+        param([string]$Path, [string]$Name)
+
+        try {
+            return Get-ItemPropertyValue -Path $Path -Name $Name -ErrorAction Stop
+        }
+        catch {
+            return $null
+        }
+    }
+
+    function Test-NameMatchesAnyPattern {
+        param([string]$Name, [string[]]$Patterns)
+
+        foreach ($pattern in $Patterns) {
+            if ($Name -like $pattern) {
+                return $true
+            }
+        }
+        return $false
+    }
+
+    # Read system state once while the UI is loading. A failed query is kept
+    # as $null so the related option remains selectable instead of being
+    # incorrectly reported as already completed.
+    try { $stateWindowsPackages = @(Get-WindowsPackage -Online -ErrorAction Stop) } catch { $stateWindowsPackages = $null }
+    try { $stateAppxPackages = @(Get-AppxPackage -AllUsers -ErrorAction Stop) } catch { $stateAppxPackages = $null }
+    try { $stateProvisionedPackages = @(Get-AppxProvisionedPackage -Online -ErrorAction Stop) } catch { $stateProvisionedPackages = $null }
+    try { $stateOptionalFeatures = @(Get-WindowsOptionalFeature -Online -ErrorAction Stop) } catch { $stateOptionalFeatures = $null }
+    try { $stateScheduledTasks = @(Get-ScheduledTask -ErrorAction Stop) } catch { $stateScheduledTasks = $null }
+
+    $aiPackagePatterns = @(
+        '*MicrosoftWindows.Client.AIX*',
+        '*MicrosoftWindows.Client.CoPilot*',
+        '*Microsoft.Windows.Ai.Copilot.Provider*',
+        '*Microsoft.Copilot*',
+        '*Microsoft.MicrosoftOfficeHub*',
+        '*MicrosoftWindows.Client.CoreAI*',
+        '*Microsoft.Edge.GameAssist*',
+        '*Microsoft.Office.ActionsServer*',
+        '*aimgr*',
+        '*Microsoft.WritingAssistant*',
+        '*Microsoft.AIFabric.CBS*',
+        '*WindowsWorkload*',
+        '*Voiess*',
+        '*Speion*',
+        '*Livtop*',
+        '*Filons*'
+    )
+
+    function Test-RemovalOptionCompleted {
+        param([string]$Name)
+
+        try {
+            switch ($Name) {
+                'Disable-Registry-Keys' {
+                    return (
+                        (Get-RegistryValueSafe 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'DisableAIDataAnalysis') -eq 1 -and
+                        (Get-RegistryValueSafe 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'AllowRecallEnablement') -eq 0 -and
+                        (Get-RegistryValueSafe 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\Explorer' 'DisableSearchBoxSuggestions') -eq 1 -and
+                        (Get-RegistryValueSafe 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' 'HubsSidebarEnabled') -eq 0
+                    )
+                }
+                'Prevent-AI-Package-Reinstall' {
+                    if ($null -eq $stateWindowsPackages) { return $false }
+                    return [bool]($stateWindowsPackages | Where-Object {
+                            $_.PackageName -like '*zoicware*' -and $_.PackageState -eq 'Installed'
+                        } | Select-Object -First 1)
+                }
+                'Disable-Copilot-Policies' {
+                    $policyPath = "$env:windir\System32\IntegratedServicesRegionPolicySet.json"
+                    if (!(Test-Path $policyPath)) { return $false }
+                    $policyJson = Get-Content $policyPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                    $copilotPolicies = @($policyJson.policies | Where-Object { $_.'$comment' -like '*CoPilot*' })
+                    $recallPolicies = @($policyJson.policies | Where-Object {
+                            $_.'$comment' -like '*A9*' -or $_.'$comment' -like '*Manage Recall*' -or $_.'$comment' -like '*Settings Agent*'
+                        })
+                    if (($copilotPolicies.Count + $recallPolicies.Count) -eq 0) { return $false }
+                    $copilotIncomplete = $copilotPolicies | Where-Object { $_.defaultState -ne 'disabled' } | Select-Object -First 1
+                    $recallIncomplete = $recallPolicies | Where-Object {
+                        if ($_.'$comment' -like '*Manage Recall*') { $_.defaultState -ne 'disabled' }
+                        else { $_.defaultState -ne 'enabled' }
+                    } | Select-Object -First 1
+                    return ($null -eq $copilotIncomplete -and $null -eq $recallIncomplete)
+                }
+                'Remove-AI-Appx-Packages' {
+                    if ($null -eq $stateAppxPackages -or $null -eq $stateProvisionedPackages) { return $false }
+                    $packageNames = @($stateAppxPackages.Name) + @($stateProvisionedPackages.DisplayName)
+                    return -not [bool]($packageNames | Where-Object {
+                            Test-NameMatchesAnyPattern -Name $_ -Patterns $aiPackagePatterns
+                        } | Select-Object -First 1)
+                }
+                'Remove-Recall-Optional-Feature' {
+                    if ($null -eq $stateOptionalFeatures) { return $false }
+                    $recallFeature = $stateOptionalFeatures | Where-Object { $_.FeatureName -eq 'Recall' } | Select-Object -First 1
+                    return ($null -eq $recallFeature -or $recallFeature.State -eq 'DisabledWithPayloadRemoved')
+                }
+                'Remove-AI-CBS-Packages' {
+                    if ($null -eq $stateWindowsPackages) { return $false }
+                    return -not [bool]($stateWindowsPackages | Where-Object {
+                            $_.PackageState -notin @('Removed', 'Superseded') -and
+                            ($_.PackageName -like '*AIX*' -or $_.PackageName -like '*Recall*' -or
+                                $_.PackageName -like '*Copilot*' -or $_.PackageName -like '*CoreAI*')
+                        } | Select-Object -First 1)
+                }
+                'Remove-AI-Files' {
+                    $roots = @("$env:SystemRoot\SystemApps", "$env:ProgramFiles\WindowsApps")
+                    $fileNames = @()
+                    foreach ($root in $roots) {
+                        if (!(Test-Path $root)) { continue }
+                        $fileNames += @(Get-ChildItem $root -Directory -ErrorAction Stop | Select-Object -ExpandProperty Name)
+                    }
+                    if ($fileNames.Count -eq 0) { return $false }
+                    return -not [bool]($fileNames | Where-Object {
+                            Test-NameMatchesAnyPattern -Name $_ -Patterns $aiPackagePatterns
+                        } | Select-Object -First 1)
+                }
+                'Hide-AI-Components' {
+                    $visibility = Get-RegistryValueSafe 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'SettingsPageVisibility'
+                    return ($visibility -like '*aicomponents;*' -and $visibility -like '*appactions;*')
+                }
+                'Disable-Notepad-Rewrite' {
+                    return (Get-RegistryValueSafe 'HKLM:\SOFTWARE\Policies\WindowsNotepad' 'DisableAIFeatures') -eq 1
+                }
+                'Remove-WindowsAI-Tasks' {
+                    if ($null -eq $stateScheduledTasks) { return $false }
+                    $windowsAiTasks = @($stateScheduledTasks | Where-Object { $_.TaskPath -like '*WindowsAI*' })
+                    $officeAiTasks = @($stateScheduledTasks | Where-Object { $_.TaskName -like '*Office Actions Server*' })
+                    return ($windowsAiTasks.Count -eq 0 -and $officeAiTasks.Count -eq 0)
+                }
+                'Update-Cleanup-Check' {
+                    if ($null -eq $stateScheduledTasks) { return $false }
+                    $cleanupTask = $stateScheduledTasks | Where-Object { $_.TaskName -eq 'RemoveAI-UpdateCleanupChecker' } | Select-Object -First 1
+                    return ($null -ne $cleanupTask -and (Test-Path "$env:ProgramData\RemoveAI-UpdateCleanup.ps1"))
+                }
+                'Disable-DefenderAI' {
+                    $debugger = Get-RegistryValueSafe 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DefenderAiPlatformHost.exe' 'Debugger'
+                    return $debugger -eq 'taskkill.exe'
+                }
+            }
+        }
+        catch {
+            return $false
+        }
+        return $false
+    }
+
     $checkboxes = @{}
     $optionLabels = @{}
     $optionInfoButtons = @{}
@@ -4383,6 +4530,11 @@ else {
         'Remove-AI-CBS-Packages'
         'Prevent-AI-Package-Reinstall'
     )
+
+    $optionCompletion = @{}
+    foreach ($func in $functions) {
+        $optionCompletion[$func] = Test-RemovalOptionCompleted -Name $func
+    }
 
     foreach ($func in $functions) {
         $optionContainer = New-Object System.Windows.Controls.DockPanel
@@ -4482,7 +4634,7 @@ else {
         $checkbox.Foreground = [System.Windows.Media.Brushes]::White
         $checkbox.Margin = '0,0,10,0'
         $checkbox.VerticalAlignment = 'Center'
-        $checkbox.IsChecked = if ($unchecked -notcontains $func) { $true } else { $false }
+        $checkbox.IsChecked = if ($optionCompletion[$func]) { $false } elseif ($unchecked -notcontains $func) { $true } else { $false }
         [System.Windows.Controls.DockPanel]::SetDock($checkbox, 'Left')
         $checkboxes[$func] = $checkbox
         $optionInfoButtons[$func] = $infoButton
@@ -4903,10 +5055,31 @@ else {
 
     $togglePanel2.Children.Add($backupInfoButton) | Out-Null
     $toggleGrid.Children.Add($togglePanel2) | Out-Null
+
+    function Update-OptionAvailability {
+        $isRevertMode = [bool]$revertModeToggle.IsChecked
+        foreach ($func in $functions) {
+            $disableCompletedOption = [bool]$optionCompletion[$func] -and !$isRevertMode
+            $checkboxes[$func].IsEnabled = !$disableCompletedOption
+            $checkboxes[$func].Opacity = if ($disableCompletedOption) { 0.45 } else { 1.0 }
+            $optionLabels[$func].Foreground = if ($disableCompletedOption) {
+                [System.Windows.Media.Brushes]::Gray
+            }
+            else {
+                [System.Windows.Media.Brushes]::White
+            }
+
+            if ($disableCompletedOption) {
+                $checkboxes[$func].IsChecked = $false
+            }
+        }
+    }
+
     # ensure that backup mode and revert mode arent both selected at the same time (cant believe i have to do this....)
     $backupModeToggle.Add_Checked({ 
             $Global:backup = 1
             $revertModeToggle.IsChecked = $false
+            Update-OptionAvailability
         }) | Out-Null
 
     $backupModeToggle.Add_Unchecked({ 
@@ -4916,10 +5089,12 @@ else {
     $revertModeToggle.Add_Checked({ 
             $Global:revert = 1 
             $backupModeToggle.IsChecked = $false
+            Update-OptionAvailability
         }) | Out-Null
 
     $revertModeToggle.Add_Unchecked({ 
-            $Global:revert = 0 
+            $Global:revert = 0
+            Update-OptionAvailability
         }) | Out-Null
    
     $bottomGrid = New-Object System.Windows.Controls.Grid
@@ -5042,7 +5217,7 @@ else {
 '@
     $githubButton.Template = [System.Windows.Markup.XamlReader]::Parse($githubTemplate)
     $githubButton.Add_Click({
-            Start-Process 'https://github.com/ma4980/RemoveWindowsAI'
+            Start-Process 'https://github.com/liu030308/RemoveWindowsAI'
         })
 
     $socialPanel.Children.Add($discordButton) | Out-Null
@@ -5257,12 +5432,17 @@ else {
         $applyButton.Content = $text.Apply
 
         foreach ($func in $allFunctions) {
+            $displayLabel = $labels[$func]
+            if ($functions -contains $func -and $optionCompletion[$func]) {
+                $displayLabel += $text.AlreadyApplied
+            }
             if ($optionLabels[$func] -is [System.Windows.Controls.TextBlock]) {
-                $optionLabels[$func].Text = $labels[$func]
+                $optionLabels[$func].Text = $displayLabel
             }
             else {
-                $optionLabels[$func].Content = $labels[$func]
+                $optionLabels[$func].Content = $displayLabel
             }
+            [System.Windows.Automation.AutomationProperties]::SetName($checkboxes[$func], $displayLabel)
             [System.Windows.Automation.AutomationProperties]::SetName($optionInfoButtons[$func], ($text.MoreInfo -f $labels[$func]))
             [System.Windows.Automation.AutomationProperties]::SetHelpText($optionInfoButtons[$func], $text.MoreInfoHelp)
         }
@@ -5287,6 +5467,7 @@ else {
             }
         })
     Update-UILanguage -Language $initialLanguage
+    Update-OptionAvailability
 
     $actionPanel.Children.Add($cancelButton) | Out-Null
     $actionPanel.Children.Add($applyButton) | Out-Null
