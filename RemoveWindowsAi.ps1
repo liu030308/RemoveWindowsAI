@@ -146,6 +146,7 @@ function Run-Trusted([String]$command, $psversion) {
 
     #modified from https://github.com/agadiffe/WindowsMize/blob/e64923ac8055f652c701e99da89a9b680070178e/src/modules/helper_functions/general/public/Invoke-CommandAsSystem.ps1
     function New-SystemScheduledTask {
+        [CmdletBinding()]
         param(
             [string]$Name,
             [string]$command
@@ -171,8 +172,7 @@ function Run-Trusted([String]$command, $psversion) {
             Settings  = $TaskSettings
         }
 
-        Unregister-ScheduledTask -TaskPath $TaskPath -TaskName $Name -Confirm:$false -ErrorAction 'SilentlyContinue'
-        Register-ScheduledTask @ScheduledTaskParam -Verbose:$false
+        Register-ScheduledTask @ScheduledTaskParam -Verbose:$false -ErrorAction Stop
     }
 
     function RunAsSystem {
@@ -180,13 +180,29 @@ function Run-Trusted([String]$command, $psversion) {
             [string] $Command
         )
 
-        $TaskData = New-SystemScheduledTask -Name 'RunAsSystem' -command $Command
+        # A fixed task name can inherit a stale SYSTEM-owned task/ACL from an
+        # interrupted run. Use a unique name and turn registration failures
+        # into one useful error instead of dereferencing a null TaskPath.
+        $taskName = 'RemoveWindowsAI-RunAsSystem-{0}' -f ([guid]::NewGuid().ToString('N'))
+        $TaskData = $null
+        try {
+            $TaskData = New-SystemScheduledTask -Name $taskName -command $Command -ErrorAction Stop
+            if ($null -eq $TaskData) {
+                throw 'Task Scheduler did not return the newly registered task.'
+            }
 
-        while ((Get-ScheduledTask -TaskPath $TaskData.TaskPath -TaskName $TaskData.TaskName).State -eq 'Running') {
-            Start-Sleep -Seconds 0.1
+            while ((Get-ScheduledTask -TaskPath $TaskData.TaskPath -TaskName $TaskData.TaskName -ErrorAction Stop).State -eq 'Running') {
+                Start-Sleep -Seconds 0.1
+            }
         }
-
-        Unregister-ScheduledTask -TaskPath $TaskData.TaskPath -TaskName $TaskData.TaskName -Confirm:$false 
+        catch {
+            throw "Unable to run the command as SYSTEM through Task Scheduler. $($_.Exception.Message)"
+        }
+        finally {
+            if ($null -ne $TaskData) {
+                Unregister-ScheduledTask -TaskPath $TaskData.TaskPath -TaskName $TaskData.TaskName -Confirm:$false -ErrorAction SilentlyContinue
+            }
+        }
     }
 
     function Set-TrustedInstallerBinaryPath {
@@ -2395,10 +2411,10 @@ function Remove-AI-Appx-Packages {
         #code and then just run that from run 
         #trusted function due to the design of having it hidden from the user
         
-        $packageRemovalPath = "$($tempDir)aiPackageRemoval.ps1"
-        if (!(test-path $packageRemovalPath)) {
-            New-Item $packageRemovalPath -Force | Out-Null
-        }
+        # A previous SYSTEM/TrustedInstaller run can leave the fixed temp file
+        # locked or with an ACL the administrator cannot overwrite. A unique
+        # file avoids collisions with interrupted or concurrently exiting runs.
+        $packageRemovalPath = Join-Path $tempDir ('RemoveWindowsAI-aiPackageRemoval-{0}.ps1' -f ([guid]::NewGuid().ToString('N')))
 
         $key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SOFTWARE\Microsoft\Windows NT\CurrentVersion')
         $OSBuild = "$($key.GetValue('CurrentBuild')).$($key.GetValue('UBR'))"
@@ -2518,7 +2534,7 @@ foreach ($choice in $aipackagesarray) {
     }
 }
 '@
-        Set-Content -Path $packageRemovalPath -Value $code -Force 
+        Set-Content -Path $packageRemovalPath -Value $code -Encoding UTF8 -Force -ErrorAction Stop
         #allow removal script to run
         try {
             Set-ExecutionPolicy Unrestricted -Force -ErrorAction Stop
@@ -2557,7 +2573,7 @@ foreach ($choice in $aipackagesarray) {
         #prevent packages array from getting expanded too early
         #pass comma seperated string and then convert back to array in new session
         $joined = $aipackages -join ','
-        $command = "&`"$($tempDir)aiPackageRemoval.ps1`" -aipackages '$joined'"
+        $command = "&`"$packageRemovalPath`" -aipackages '$joined'"
         Run-Trusted -command $command -psversion $psversion
 
         #check packages removal
@@ -2573,11 +2589,12 @@ foreach ($choice in $aipackagesarray) {
                     $Global:logInfo.Result = "Found Packages: $packages"
                     Add-LogInfo -logPath $logPath -info $Global:logInfo
                 }
-                #$command = "&`"$($tempDir)aiPackageRemoval.ps1`""
                 Run-Trusted -command $command -psversion $psversion
             }
     
         }while ($packages -and $attempts -lt 10)
+
+        Remove-Item -LiteralPath $packageRemovalPath -Force -ErrorAction SilentlyContinue
 
         if ($EnableLogging) {
             if ($attempts -ge 10) {
@@ -5399,7 +5416,7 @@ else {
                 if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
                     #cleanup code
                     try {
-                        Remove-Item "$($tempDir)aiPackageRemoval.ps1" -Force -ErrorAction SilentlyContinue
+                        Remove-Item "$($tempDir)RemoveWindowsAI-aiPackageRemoval-*.ps1" -Force -ErrorAction SilentlyContinue
                     }
                     catch {}
                     try {
@@ -5505,7 +5522,7 @@ else {
 
 #cleanup code
 try {
-    Remove-Item "$($tempDir)aiPackageRemoval.ps1" -Force -ErrorAction SilentlyContinue
+    Remove-Item "$($tempDir)RemoveWindowsAI-aiPackageRemoval-*.ps1" -Force -ErrorAction SilentlyContinue
 }
 catch {}
 try {
