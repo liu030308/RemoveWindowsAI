@@ -81,6 +81,8 @@ The current 25H2 build of Windows 11 and future builds will include increasingly
 
 The UI includes an English / 繁體中文 language selector. Traditional Chinese is selected automatically when Windows uses the `zh-TW` UI culture, and the language can be changed at any time from the top-right selector. Traditional Chinese translation by [@liu030308](https://github.com/liu030308).
 
+The script automatically detects the Windows feature update and build number. On Windows 11 26H2 and newer, it uses a safer layout that preserves shared `AIFabric.CBS`, `Photon`, `Client.CBS`, WinSxS, CatRoot, and Windows AI framework files while disabling their AI features through supported policies. The unvalidated custom anti-reinstall CAB and direct CBS removal options are disabled automatically on these builds.
+
  ### Compact Command:
  ```PowerShell
  irm 'https://raw.githubusercontent.com/liu030308/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1' | iex
@@ -102,6 +104,8 @@ The UI includes an English / 繁體中文 language selector. Traditional Chinese
 此版本已加入繁體中文介面。當 Windows 顯示語言為繁體中文 (`zh-TW`) 時，程式會自動使用繁體中文；也可以從視窗右上角的語言選單隨時切換 English／繁體中文。
 
 **繁體中文翻譯者：[@liu030308](https://github.com/liu030308)**
+
+腳本會自動偵測 Windows 功能更新版本與組建編號。Windows 11 26H2 及更新版本會自動採用安全移除配置：保留與檔案總管、搜尋及 Windows servicing 共用的 `AIFabric.CBS`、`Photon`、`Client.CBS`、WinSxS、CatRoot 與 Windows AI framework 檔案，改用官方原則停用相關 AI 功能。尚未驗證的「防止重新安裝 AI 套件」CAB 與直接 CBS 移除選項會自動顯示灰色並停用。
 
 > [!WARNING]
 > 請使用「以系統管理員身分執行」的 **Windows PowerShell 5.1 (`powershell.exe`)**。請勿使用 PowerShell 7 (`pwsh.exe`)，否則可能發生相容性問題。

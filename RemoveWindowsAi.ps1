@@ -465,6 +465,42 @@ else {
 
 $Global:tempDir = ([System.IO.Path]::GetTempPath())
 
+function Get-WindowsReleaseProfile {
+    $currentVersion = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    $build = [int]$currentVersion.CurrentBuild
+    $ubr = [int]$currentVersion.UBR
+    $displayVersion = [string]$currentVersion.DisplayVersion
+
+    # ProductName can still report "Windows 10" on Windows 11. Build number
+    # and DisplayVersion are the reliable selectors for version-specific paths.
+    $isWindows11 = $build -ge 22000
+    if ([string]::IsNullOrWhiteSpace($displayVersion)) {
+        $displayVersion = if ($build -ge 26300) { '26H2' } elseif ($build -ge 26200) { '25H2' } elseif ($build -ge 26100) { '24H2' } else { 'Unknown' }
+    }
+
+    [PSCustomObject]@{
+        IsWindows11             = $isWindows11
+        DisplayVersion          = $displayVersion
+        Build                   = $build
+        UBR                     = $ubr
+        FullBuild               = "$build.$ubr"
+        Is26H2OrNewer           = $isWindows11 -and ($build -ge 26300 -or $displayVersion -match '^(2[6-9]|[3-9][0-9])H2$')
+        UseLegacyPhysicalRemoval = !($isWindows11 -and ($build -ge 26300 -or $displayVersion -match '^(2[6-9]|[3-9][0-9])H2$'))
+        ProtectedSystemApps     = @(
+            'Microsoft.AIFabric.CBS*'
+            'MicrosoftWindows.Client.Photon*'
+            'MicrosoftWindows.Client.CBS*'
+        )
+    }
+}
+
+$Global:windowsProfile = Get-WindowsReleaseProfile
+$detectedOS = if ($windowsProfile.IsWindows11) { 'Windows 11' } else { 'Windows' }
+Write-Status -msg "Detected $detectedOS $($windowsProfile.DisplayVersion) (Build $($windowsProfile.FullBuild))"
+if ($windowsProfile.Is26H2OrNewer) {
+    Write-Status -msg 'Using the Windows 11 26H2+ safe removal layout; shared shell and AI framework components will be preserved.' -warningOutput
+}
+
 #=====================================================================================
 
 function Add-LogInfo {
@@ -1194,9 +1230,10 @@ function Disable-Registry-Keys {
     #seems to be fixed in 26200.8328
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint' /v 'DisableImageCreator' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
 
-    #these still do nothing
-    #Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint' /v 'DisableCocreator' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-    #Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint' /v 'DisableGenerativeFill' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
+    # These are documented WindowsAI policies on current 24H2+ builds and are
+    # active on 26H2 even though older Paint versions ignored them.
+    Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint' /v 'DisableCocreator' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
+    Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint' /v 'DisableGenerativeFill' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     
     # disable experimental agentic features
     Reg.exe add 'HKLM\SYSTEM\CurrentControlSet\Services\IsoEnvBroker' /v 'Start' /t REG_DWORD /d @('4', '3')[$revert] /f *>$null
@@ -2032,6 +2069,10 @@ public class TaskbarUnpinByAumid {
 function Install-NOAIPackage {
     
     if (!$revert) {
+        if ($windowsProfile.Is26H2OrNewer) {
+            Write-Status -msg "Skipping the custom anti-reinstall CAB on Windows 11 $($windowsProfile.DisplayVersion); it has not been validated for build $($windowsProfile.FullBuild)." -warningOutput
+            return
+        }
         $package = Get-WindowsPackage -Online | Where-Object { $_.PackageName -like '*zoicware*' }
         if (!$package) {
             #check cpu arch
@@ -2696,6 +2737,10 @@ function Remove-Recall-Optional-Feature {
 # not restoring for now shouldnt cause any issues (also may not even be possible to restore)
 function Remove-AI-CBS-Packages {
     if (!$revert) {
+        if ($windowsProfile.Is26H2OrNewer) {
+            Write-Status -msg "Skipping direct CBS removal on Windows 11 $($windowsProfile.DisplayVersion); 26H2 shares these components with Explorer, Search, and Windows servicing." -warningOutput
+            return
+        }
         #additional hidden packages
         Write-Status -msg 'Removing Additional Hidden AI Packages...'
         #unhide the packages from dism, remove owners subkey for removal 
@@ -2798,7 +2843,6 @@ function Remove-AI-Files {
             'Microsoft.Office.ActionsServer'
             'aimgr'
             'Microsoft.WritingAssistant'
-            'Microsoft.AIFabric.CBS'
             #ai component packages installed on copilot+ pcs
             'WindowsWorkload'
             'Voiess'
@@ -2806,6 +2850,9 @@ function Remove-AI-Files {
             'Livtop'
             'Filons'
         )
+        if ($windowsProfile.UseLegacyPhysicalRemoval) {
+            $aipackages += 'Microsoft.AIFabric.CBS'
+        }
 
         Write-Status -msg 'Removing Appx Package Files...'
         Write-Status -msg 'This could take a while on some systems, please be patient!' -warningOutput
@@ -2867,27 +2914,32 @@ function Remove-AI-Files {
             }
         }
 
-        $paths = @($appsPath4, $appsPath5)
-        $jobs = foreach ($path in $paths) {
-            $rs = [powershell]::Create().AddScript({
-                    param($path)
-                    (Get-ChildItem -Path $path -Recurse -Force -ErrorAction SilentlyContinue | 
-                    Where-Object { $_.FullName -like '*UserExperience-AIX*' -or 
-                        $_.FullName -like '*Copilot*' -or 
-                        $_.FullName -like '*UserExperience-Recall*' -or 
-                        $_.FullName -like '*CoreAI*' 
-                    }).FullName
-                }).AddParameter('path', $path)
-    
-            [pscustomobject]@{
-                Runspace = $rs
-                Handle   = $rs.BeginInvoke()
+        if ($windowsProfile.UseLegacyPhysicalRemoval) {
+            $paths = @($appsPath4, $appsPath5)
+            $jobs = foreach ($path in $paths) {
+                $rs = [powershell]::Create().AddScript({
+                        param($path)
+                        (Get-ChildItem -Path $path -Recurse -Force -ErrorAction SilentlyContinue | 
+                        Where-Object { $_.FullName -like '*UserExperience-AIX*' -or 
+                            $_.FullName -like '*Copilot*' -or 
+                            $_.FullName -like '*UserExperience-Recall*' -or 
+                            $_.FullName -like '*CoreAI*' 
+                        }).FullName
+                    }).AddParameter('path', $path)
+        
+                [pscustomobject]@{
+                    Runspace = $rs
+                    Handle   = $rs.BeginInvoke()
+                }
+            }
+
+            $packagesPath += foreach ($job in $jobs) {
+                $job.Runspace.EndInvoke($job.Handle)
+                $job.Runspace.Dispose()
             }
         }
-
-        $packagesPath += foreach ($job in $jobs) {
-            $job.Runspace.EndInvoke($job.Handle)
-            $job.Runspace.Dispose()
+        else {
+            Write-Status -msg 'Preserving 26H2 servicing manifests and CatRoot files.' -warningOutput
         }
 
 
@@ -2949,32 +3001,37 @@ function Remove-AI-Files {
            
         }
 
-        #remove machine learning dlls
-        $paths = @(
-            "$env:SystemRoot\System32\Windows.AI.MachineLearning.dll"
-            "$env:SystemRoot\SysWOW64\Windows.AI.MachineLearning.dll"
-            "$env:SystemRoot\System32\Windows.AI.MachineLearning.Preview.dll"
-            "$env:SystemRoot\SysWOW64\Windows.AI.MachineLearning.Preview.dll"
-            "$env:SystemRoot\System32\SettingsHandlers_Copilot.dll"
-            "$env:SystemRoot\System32\SettingsHandlers_A9.dll"
-            "$env:SystemRoot\System32\Windows.AI.Agents.dll"
-            "$env:SystemRoot\SysWOW64\Windows.AI.Agents.dll"
-            "$env:SystemRoot\System32\Windows.Internal.AI.PlatformCapability.dll"
-            "$env:SystemRoot\SysWOW64\Windows.Internal.AI.PlatformCapability.dll"
-        )
-        foreach ($path in $paths) {
-            if (Test-Path $path) {
-                takeown /f $path *>$null
-                icacls $path /grant *S-1-5-32-544:F /t *>$null
-                try {
-                    Remove-Item -Path $path -Force -ErrorAction Stop
-                }
-                catch {
-                    #takeown didnt work remove file with system priv
-                    $command = "Remove-Item -Path $path -Force"
-                    Run-Trusted -command $command -psversion $psversion
+        if ($windowsProfile.UseLegacyPhysicalRemoval) {
+            #remove machine learning dlls on legacy layouts only
+            $paths = @(
+                "$env:SystemRoot\System32\Windows.AI.MachineLearning.dll"
+                "$env:SystemRoot\SysWOW64\Windows.AI.MachineLearning.dll"
+                "$env:SystemRoot\System32\Windows.AI.MachineLearning.Preview.dll"
+                "$env:SystemRoot\SysWOW64\Windows.AI.MachineLearning.Preview.dll"
+                "$env:SystemRoot\System32\SettingsHandlers_Copilot.dll"
+                "$env:SystemRoot\System32\SettingsHandlers_A9.dll"
+                "$env:SystemRoot\System32\Windows.AI.Agents.dll"
+                "$env:SystemRoot\SysWOW64\Windows.AI.Agents.dll"
+                "$env:SystemRoot\System32\Windows.Internal.AI.PlatformCapability.dll"
+                "$env:SystemRoot\SysWOW64\Windows.Internal.AI.PlatformCapability.dll"
+            )
+            foreach ($path in $paths) {
+                if (Test-Path $path) {
+                    takeown /f $path *>$null
+                    icacls $path /grant *S-1-5-32-544:F /t *>$null
+                    try {
+                        Remove-Item -Path $path -Force -ErrorAction Stop
+                    }
+                    catch {
+                        #takeown didnt work remove file with system priv
+                        $command = "Remove-Item -Path $path -Force"
+                        Run-Trusted -command $command -psversion $psversion
+                    }
                 }
             }
+        }
+        else {
+            Write-Status -msg 'Preserving shared 26H2 Windows AI framework DLLs.' -warningOutput
         }
     
         Write-Status -msg 'Removing Hidden Copilot Installers...'
@@ -3174,109 +3231,112 @@ function Remove-AI-Files {
         reg.exe delete 'HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\ActionsMcpHost.exe' /f *>$null
         reg.exe delete 'HKLM\Software\Microsoft\Windows\CurrentVersion\App Paths\ActionsMcpHost.exe' /f *>$null
 
-        #remove app actions files 
-        #these will get remade when updating
-        taskkill.exe /im AppActions.exe /f *>$null
-        taskkill.exe /im VisualAssist.exe /f *>$null
-        $paths = @(
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\ActionUI"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssist"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\AppActions.exe"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\AppActions.dll"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssistExe.exe"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssistExe.dll"
-        )
+        if ($windowsProfile.UseLegacyPhysicalRemoval) {
+            #remove app actions files from legacy Client.CBS layouts
+            taskkill.exe /im AppActions.exe /f *>$null
+            taskkill.exe /im VisualAssist.exe /f *>$null
+            $paths = @(
+                "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\ActionUI"
+                "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssist"
+                "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\AppActions.exe"
+                "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\AppActions.dll"
+                "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssistExe.exe"
+                "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssistExe.dll"
+            )
 
-        Write-Status -msg 'Removing App Actions Files...'
-        foreach ($path in $paths) {
-            if (Test-Path $path) {
-                if ((Get-Item $path).PSIsContainer) {
-                    takeown /f "$path" /r /d Y *>$null
-                    icacls "$path" /grant *S-1-5-32-544:F /t *>$null
-                    Remove-Item "$path" -Force -Recurse -ErrorAction SilentlyContinue
-                }
-                else {
-                    takeown /f "$path" *>$null
-                    icacls "$path" /grant *S-1-5-32-544:F /t *>$null
-                    Remove-Item "$path" -Force -ErrorAction SilentlyContinue
-                }
-            }
-        }
-        
-
-        Write-Status -msg 'Removing AI From Component Store (WinSxS)...'
-        Write-Status -msg 'This could take a while on some systems, please be patient!' -warningOutput
-        #additional dirs and reg keys
-        $aiKeyWords = @(
-            'AIX',
-            'Copilot',
-            'Recall',
-            'CoreAI',
-            'aimgr'
-        )
-        $regLocations = @(
-            'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage',
-            'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages',
-            'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData',
-            'registry::HKCR\PackagedCom\Package',
-            'HKCU:\Software\Classes\PackagedCom\Package',
-            'HKCU:\Software\RegisteredApplications',
-            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SideBySide\Winners'
-        )
-        $dirs = @(
-            "$env:windir\WinSxS",
-            "$env:windir\System32\CatRoot"
-        )
-        
-        New-Item "$($tempDir)PathsToDelete.txt" -ItemType File -Force | Out-Null
-        foreach ($keyword in $aiKeyWords) {
-            foreach ($location in $regLocations) {
-                Get-ChildItem $location -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "*$keyword*" } | ForEach-Object {
-                    try {
-                        Remove-Item $_.PSPath -Recurse -Force -ErrorAction Stop
+            Write-Status -msg 'Removing App Actions Files...'
+            foreach ($path in $paths) {
+                if (Test-Path $path) {
+                    if ((Get-Item $path).PSIsContainer) {
+                        takeown /f "$path" /r /d Y *>$null
+                        icacls "$path" /grant *S-1-5-32-544:F /t *>$null
+                        Remove-Item "$path" -Force -Recurse -ErrorAction SilentlyContinue
                     }
-                    catch {
-                        #ignore when path is null
+                    else {
+                        takeown /f "$path" *>$null
+                        icacls "$path" /grant *S-1-5-32-544:F /t *>$null
+                        Remove-Item "$path" -Force -ErrorAction SilentlyContinue
                     }
-                    
                 }
             }
 
-        }
+            Write-Status -msg 'Removing AI From Component Store (WinSxS)...'
+            Write-Status -msg 'This could take a while on some systems, please be patient!' -warningOutput
+            #additional dirs and reg keys
+            $aiKeyWords = @(
+                'AIX',
+                'Copilot',
+                'Recall',
+                'CoreAI',
+                'aimgr'
+            )
+            $regLocations = @(
+                'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage',
+                'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage',
+                'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages',
+                'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages',
+                'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData',
+                'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData',
+                'registry::HKCR\PackagedCom\Package',
+                'HKCU:\Software\Classes\PackagedCom\Package',
+                'HKCU:\Software\RegisteredApplications',
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SideBySide\Winners'
+            )
+            $dirs = @(
+                "$env:windir\WinSxS",
+                "$env:windir\System32\CatRoot"
+            )
+            
+            New-Item "$($tempDir)PathsToDelete.txt" -ItemType File -Force | Out-Null
+            foreach ($keyword in $aiKeyWords) {
+                foreach ($location in $regLocations) {
+                    Get-ChildItem $location -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "*$keyword*" } | ForEach-Object {
+                        try {
+                            Remove-Item $_.PSPath -Recurse -Force -ErrorAction Stop
+                        }
+                        catch {
+                            #ignore when path is null
+                        }
+                        
+                    }
+                }
 
-        $jobs = foreach ($dir in $dirs) {
-            $rs = [powershell]::Create().AddScript({
-                    param($dir, $aiKeyWords)
-                    $winSxS = $dir -match 'WinSxS'
-                    $items = Get-ChildItem $dir -Recurse -Directory:$winSxS -File:(!$winSxS) -ErrorAction SilentlyContinue 
-                    ($items | Where-Object { 
-                        $_.FullName -like "*$($aiKeyWords[0])*" -or 
-                        $_.FullName -like "*$($aiKeyWords[1])*" -or 
-                        $_.FullName -like "*$($aiKeyWords[2])*" -or
-                        $_.FullName -like "*$($aiKeyWords[3])*" -or
-                        $_.FullName -like "*$($aiKeyWords[4])*"
-                    }).FullName
-                }).AddParameter('dir', $dir).AddParameter('aiKeyWords', $aiKeyWords)
-    
-            [pscustomobject]@{
-                Runspace = $rs
-                Handle   = $rs.BeginInvoke()
             }
+
+            $jobs = foreach ($dir in $dirs) {
+                $rs = [powershell]::Create().AddScript({
+                        param($dir, $aiKeyWords)
+                        $winSxS = $dir -match 'WinSxS'
+                        $items = Get-ChildItem $dir -Recurse -Directory:$winSxS -File:(!$winSxS) -ErrorAction SilentlyContinue 
+                        ($items | Where-Object { 
+                            $_.FullName -like "*$($aiKeyWords[0])*" -or 
+                            $_.FullName -like "*$($aiKeyWords[1])*" -or 
+                            $_.FullName -like "*$($aiKeyWords[2])*" -or
+                            $_.FullName -like "*$($aiKeyWords[3])*" -or
+                            $_.FullName -like "*$($aiKeyWords[4])*"
+                        }).FullName
+                    }).AddParameter('dir', $dir).AddParameter('aiKeyWords', $aiKeyWords)
+        
+                [pscustomobject]@{
+                    Runspace = $rs
+                    Handle   = $rs.BeginInvoke()
+                }
+            }
+
+            $pathsToDelete = foreach ($job in $jobs) {
+                $job.Runspace.EndInvoke($job.Handle)
+                $job.Runspace.Dispose()
+            }
+
+            Set-Content "$($tempDir)PathsToDelete.txt" -Value $pathsToDelete -Force | Out-Null
+
+            $command = "Get-Content `"$($tempDir)PathsToDelete.txt`"  | ForEach-Object { Remove-Item `$_ -Force -Recurse -EA 0 }"
+            Run-Trusted -command $command -psversion $psversion
+            Start-Sleep 1
         }
-
-        $pathsToDelete = foreach ($job in $jobs) {
-            $job.Runspace.EndInvoke($job.Handle)
-            $job.Runspace.Dispose()
+        else {
+            Write-Status -msg 'Preserving the shared 26H2 Client.CBS, WinSxS, and CatRoot components; policy-based disabling remains active.' -warningOutput
         }
-
-        Set-Content "$($tempDir)PathsToDelete.txt" -Value $pathsToDelete -Force | Out-Null
-
-        $command = "Get-Content `"$($tempDir)PathsToDelete.txt`"  | ForEach-Object { Remove-Item `$_ -Force -Recurse -EA 0 }"
-        Run-Trusted -command $command -psversion $psversion
-        Start-Sleep 1
     }
 
 }
@@ -4208,7 +4268,7 @@ else {
             RevertTitle = 'Revert Mode'; RevertDescription = 'Revert Mode will undo changes made by this tool, restoring AI features and settings to their original state. Selected options above will be reverted/enabled when this mode is selected.'
             BackupTitle = 'Backup Mode'; BackupDescription = 'Backup Mode keeps necessary files in your User directory allowing revert mode to work properly. Use this option while removing AI if you would like to fully revert the removal process.'
             ShortcutTitle = 'Shortcut Options'; ShortcutDescription = 'Creates a shortcut that runs the latest version of this script from GitHub.'
-            MoreInfo = 'More information about {0}'; MoreInfoHelp = 'Opens a dialog describing this option'; AlreadyApplied = ' (already disabled/removed)'
+            MoreInfo = 'More information about {0}'; MoreInfoHelp = 'Opens a dialog describing this option'; AlreadyApplied = ' (already disabled/removed)'; UnsupportedVersion = ' (not available on Windows 11 {0})'
         }
         'zh-TW' = @{
             WindowTitle = '移除 Windows AI - 作者 @zoicware｜翻譯者 @liu030308'; Title = '移除 Windows AI'; Language = '語言：'
@@ -4221,7 +4281,7 @@ else {
             RevertTitle = '還原模式'; RevertDescription = '還原模式會復原此工具所做的變更，將 AI 功能與設定恢復到原始狀態。啟用此模式後，上方選取的項目將被還原或重新啟用。'
             BackupTitle = '備份模式'; BackupDescription = '備份模式會將還原所需的檔案保留在使用者目錄中。若日後希望完整還原移除程序，請在移除 AI 時啟用此選項。'
             ShortcutTitle = '捷徑選項'; ShortcutDescription = '建立捷徑，從 GitHub 執行此腳本的最新版本。'
-            MoreInfo = '顯示「{0}」的詳細資訊'; MoreInfoHelp = '開啟此選項的說明對話框'; AlreadyApplied = '（已停用／移除）'
+            MoreInfo = '顯示「{0}」的詳細資訊'; MoreInfoHelp = '開啟此選項的說明對話框'; AlreadyApplied = '（已停用／移除）'; UnsupportedVersion = '（不適用於 Windows 11 {0}）'
         }
     }
 
@@ -4429,6 +4489,12 @@ else {
         '*Livtop*',
         '*Filons*'
     )
+    if ($windowsProfile.Is26H2OrNewer) {
+        # AIFabric.CBS 1.6 is shared by Explorer, semantic search, imaging, and
+        # the Windows AI APIs on 26H2. Its presence must not make the safe
+        # removal options appear incomplete.
+        $aiPackagePatterns = @($aiPackagePatterns | Where-Object { $_ -ne '*Microsoft.AIFabric.CBS*' })
+    }
 
     function Test-RemovalOptionCompleted {
         param([string]$Name)
@@ -4557,6 +4623,15 @@ else {
         $optionCompletion[$func] = Test-RemovalOptionCompleted -Name $func
     }
 
+    $optionUnsupported = @{}
+    foreach ($func in $functions) {
+        $optionUnsupported[$func] = $false
+    }
+    if ($windowsProfile.Is26H2OrNewer) {
+        $optionUnsupported['Prevent-AI-Package-Reinstall'] = $true
+        $optionUnsupported['Remove-AI-CBS-Packages'] = $true
+    }
+
     foreach ($func in $functions) {
         $optionContainer = New-Object System.Windows.Controls.DockPanel
         $optionContainer.Margin = '0,5,0,5'
@@ -4655,7 +4730,7 @@ else {
         $checkbox.Foreground = [System.Windows.Media.Brushes]::White
         $checkbox.Margin = '0,0,10,0'
         $checkbox.VerticalAlignment = 'Center'
-        $checkbox.IsChecked = if ($optionCompletion[$func]) { $false } elseif ($unchecked -notcontains $func) { $true } else { $false }
+        $checkbox.IsChecked = if ($optionCompletion[$func] -or $optionUnsupported[$func]) { $false } elseif ($unchecked -notcontains $func) { $true } else { $false }
         [System.Windows.Controls.DockPanel]::SetDock($checkbox, 'Left')
         $checkboxes[$func] = $checkbox
         $optionInfoButtons[$func] = $infoButton
@@ -5080,17 +5155,17 @@ else {
     function Update-OptionAvailability {
         $isRevertMode = [bool]$revertModeToggle.IsChecked
         foreach ($func in $functions) {
-            $disableCompletedOption = [bool]$optionCompletion[$func] -and !$isRevertMode
-            $checkboxes[$func].IsEnabled = !$disableCompletedOption
-            $checkboxes[$func].Opacity = if ($disableCompletedOption) { 0.45 } else { 1.0 }
-            $optionLabels[$func].Foreground = if ($disableCompletedOption) {
+            $disableOption = [bool]$optionUnsupported[$func] -or ([bool]$optionCompletion[$func] -and !$isRevertMode)
+            $checkboxes[$func].IsEnabled = !$disableOption
+            $checkboxes[$func].Opacity = if ($disableOption) { 0.45 } else { 1.0 }
+            $optionLabels[$func].Foreground = if ($disableOption) {
                 [System.Windows.Media.Brushes]::Gray
             }
             else {
                 [System.Windows.Media.Brushes]::White
             }
 
-            if ($disableCompletedOption) {
+            if ($disableOption) {
                 $checkboxes[$func].IsChecked = $false
             }
         }
@@ -5465,7 +5540,7 @@ else {
 
         $text = $uiText[$Language]
         $labels = $functionLabels[$Language]
-        $window.Title = $text.WindowTitle
+        $window.Title = "$($text.WindowTitle) | Windows 11 $($windowsProfile.DisplayVersion)"
         $title.Text = $text.Title
         $languageLabel.Text = $text.Language
         $classicAppsHeader.Text = $text.ClassicApps
@@ -5478,7 +5553,10 @@ else {
 
         foreach ($func in $allFunctions) {
             $displayLabel = $labels[$func]
-            if ($functions -contains $func -and $optionCompletion[$func]) {
+            if ($functions -contains $func -and $optionUnsupported[$func]) {
+                $displayLabel += ($text.UnsupportedVersion -f $windowsProfile.DisplayVersion)
+            }
+            elseif ($functions -contains $func -and $optionCompletion[$func]) {
                 $displayLabel += $text.AlreadyApplied
             }
             if ($optionLabels[$func] -is [System.Windows.Controls.TextBlock]) {
