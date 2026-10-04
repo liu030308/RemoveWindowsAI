@@ -2181,36 +2181,43 @@ function Disable-Copilot-Policies {
         Write-Host "$(@('Disabling','Enabling')[$revert]) CoPilot Policies in " -NoNewline -ForegroundColor Cyan
         Write-Host "[$JSONPath]" -ForegroundColor Yellow
 
-        #takeownership
-        takeown /f $JSONPath *>$null
-        icacls $JSONPath /grant *S-1-5-32-544:F /t *>$null
-
-        #edit the content
-        $jsonContent = Get-Content $JSONPath | ConvertFrom-Json
         try {
-            $copilotPolicies = $jsonContent.policies | Where-Object { $_.'$comment' -like '*CoPilot*' }
-            foreach ($policies in $copilotPolicies) {
-                $policies.defaultState = @('disabled', 'enabled')[$revert]
+            # Read and identify policies before changing ownership. Newer 26H2
+            # builds may no longer contain the legacy CoPilot policy records.
+            $jsonContent = Get-Content $JSONPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $copilotPolicies = @($jsonContent.policies | Where-Object { $_.'$comment' -like '*CoPilot*' })
+            $recallPolicies = @($jsonContent.policies | Where-Object { $_.'$comment' -like '*A9*' -or $_.'$comment' -like '*Manage Recall*' -or $_.'$comment' -like '*Settings Agent*' })
+            $total = $copilotPolicies.Count + $recallPolicies.Count
+
+            if ($total -eq 0) {
+                Write-Status -msg 'No legacy CoPilot or Recall records were found in IntegratedServicesRegionPolicySet; skipping this 26H2 location.' -warningOutput
             }
-            $recallPolicies = $jsonContent.policies | Where-Object { $_.'$comment' -like '*A9*' -or $_.'$comment' -like '*Manage Recall*' -or $_.'$comment' -like '*Settings Agent*' }
-            foreach ($recallPolicy in $recallPolicies) {
-                if ($recallPolicy.'$comment' -like '*A9*') {
-                    $recallPolicy.defaultState = @('enabled', 'disabled')[$revert]
+            else {
+                foreach ($policies in $copilotPolicies) {
+                    $policies.defaultState = @('disabled', 'enabled')[$revert]
                 }
-                elseif ($recallPolicy.'$comment' -like '*Manage Recall*') {
-                    $recallPolicy.defaultState = @('disabled', 'enabled')[$revert]
+                foreach ($recallPolicy in $recallPolicies) {
+                    if ($recallPolicy.'$comment' -like '*A9*') {
+                        $recallPolicy.defaultState = @('enabled', 'disabled')[$revert]
+                    }
+                    elseif ($recallPolicy.'$comment' -like '*Manage Recall*') {
+                        $recallPolicy.defaultState = @('disabled', 'enabled')[$revert]
+                    }
+                    elseif ($recallPolicy.'$comment' -like '*Settings Agent*') {
+                        $recallPolicy.defaultState = @('enabled', 'disabled')[$revert]
+                    }
                 }
-                elseif ($recallPolicy.'$comment' -like '*Settings Agent*') {
-                    $recallPolicy.defaultState = @('enabled', 'disabled')[$revert]
-                }
+
+                #take ownership only when matching records actually need updating
+                takeown /f $JSONPath *>$null
+                icacls $JSONPath /grant *S-1-5-32-544:F /t *>$null
+                $newJSONContent = $jsonContent | ConvertTo-Json -Depth 100
+                Set-Content $JSONPath -Value $newJSONContent -Encoding UTF8 -Force -ErrorAction Stop
+                Write-Status -msg "$total CoPilot Policies $(@('Disabled','Enabled')[$revert])"
             }
-            $newJSONContent = $jsonContent | ConvertTo-Json -Depth 100
-            Set-Content $JSONPath -Value $newJSONContent -Force
-            $total = ($copilotPolicies.count) + ($recallPolicies.count)
-            Write-Status -msg "$total CoPilot Policies $(@('Disabled','Enabled')[$revert])"
         }
         catch {
-            Write-Status -msg 'CoPilot Not Found in IntegratedServicesRegionPolicySet' -errorOutput 
+            Write-Status -msg "Unable to update IntegratedServicesRegionPolicySet: $($_.Exception.Message)" -errorOutput
         }
 
     
