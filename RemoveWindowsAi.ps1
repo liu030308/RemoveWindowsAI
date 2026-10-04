@@ -189,7 +189,41 @@ function Run-Trusted([String]$command, $psversion) {
         Unregister-ScheduledTask -TaskPath $TaskData.TaskPath -TaskName $TaskData.TaskName -Confirm:$false 
     }
 
+    function Set-TrustedInstallerBinaryPath {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path
+        )
+
+        # Do not allow a native-command error to skip path restoration when
+        # the caller uses $ErrorActionPreference = 'Stop'.
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            sc.exe config TrustedInstaller binPath= $Path *>$null
+            $configExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+
+        if ($configExitCode -ne 0) {
+            throw "Failed to set the TrustedInstaller binary path to '$Path' (exit code $configExitCode)."
+        }
+    }
+
     $psexe = 'PowerShell.exe'
+    $trustedInstallerPath = "$env:SystemRoot\servicing\TrustedInstaller.exe"
+
+    # Repair a stale temporary command left by an interrupted earlier run.
+    $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='TrustedInstaller'"
+    if ($null -eq $service) {
+        throw 'The TrustedInstaller service could not be found.'
+    }
+    if ($service.PathName -ne $trustedInstallerPath) {
+        Write-Status -msg 'Restoring the TrustedInstaller binary path from an interrupted earlier run...' -warningOutput
+        Set-TrustedInstallerBinaryPath -Path $trustedInstallerPath
+    }
 
     taskkill /im trustedinstaller.exe /f *>$null
 
@@ -205,25 +239,41 @@ function Run-Trusted([String]$command, $psversion) {
     $bytes = [System.Text.Encoding]::Unicode.GetBytes($command)
     $base64Command = [Convert]::ToBase64String($bytes)
 
-    #get bin path to revert later
-    $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='TrustedInstaller'"
-    $DefaultBinPath = $service.PathName
-    #make sure path is valid and the correct location
-    $trustedInstallerPath = "$env:SystemRoot\servicing\TrustedInstaller.exe"
-    if ($DefaultBinPath -ne $trustedInstallerPath) {
-        $DefaultBinPath = $trustedInstallerPath
+    # TrustedInstaller must always return to the Windows default path.
+    $DefaultBinPath = $trustedInstallerPath
+    # Always restore the TrustedInstaller binary path, even if starting the
+    # temporary command fails or an anti-virus interrupts the operation.
+    $trustedInstallerError = $null
+    try {
+        #change bin to command
+        Set-TrustedInstallerBinaryPath -Path "cmd.exe /c $psexe -encodedcommand $base64Command"
+
+        #run the command
+        sc.exe start TrustedInstaller | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to start the temporary TrustedInstaller command (exit code $LASTEXITCODE)."
+        }
     }
-    #change bin to command
-    sc.exe config TrustedInstaller binPath= "cmd.exe /c $psexe -encodedcommand $base64Command" | Out-Null
-    #run the command
-    sc.exe start TrustedInstaller | Out-Null
-    #set bin back to default
-    sc.exe config TrustedInstaller binpath= "`"$DefaultBinPath`"" | Out-Null
+    catch {
+        $trustedInstallerError = $_
+    }
+    finally {
+        try {
+            Set-TrustedInstallerBinaryPath -Path $DefaultBinPath
+        }
+        catch {
+            throw "CRITICAL: TrustedInstaller path restoration failed. $($_.Exception.Message)"
+        }
+    }
     try {
         Stop-Service -Name TrustedInstaller -Force -ErrorAction Stop -WarningAction Stop
     }
     catch {
         taskkill /im trustedinstaller.exe /f >$null
+    }
+
+    if ($null -ne $trustedInstallerError) {
+        throw $trustedInstallerError
     }
     
 }
