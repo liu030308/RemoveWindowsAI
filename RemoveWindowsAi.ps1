@@ -88,7 +88,7 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
         $arglist = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $($paramStr -join ' ')"
     }
     else {
-        $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1'))) $($paramStr -join ' ')`""
+        $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1'))) $($paramStr -join ' ')`""
     }
     Start-Process PowerShell.exe -ArgumentList $arglist -Verb RunAs
     exit	
@@ -3400,7 +3400,7 @@ function Create-ScriptShortcut {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut("$desktopPath\RemoveWindowsAI.lnk")
         $Shortcut.TargetPath = $psPath
-        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1')))`""
+        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1')))`""
         $Shortcut.IconLocation = $icoPath
         $Shortcut.Save()
         #runasadmin
@@ -3415,7 +3415,7 @@ function Create-ScriptShortcut {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut("$startPath\RemoveWindowsAI.lnk")
         $Shortcut.TargetPath = $psPath
-        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1')))`""
+        $Shortcut.Arguments = "-ep bypass -c `"& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1')))`""
         $Shortcut.IconLocation = $icoPath
         $Shortcut.Save()
         #runasadmin

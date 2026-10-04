@@ -76,14 +76,14 @@ The current 25H2 build of Windows 11 and future builds will include increasingly
 
  ### Launch with UI
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1")))
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1")))
  ```
 
 The UI includes an English / 繁體中文 language selector. Traditional Chinese is selected automatically when Windows uses the `zh-TW` UI culture, and the language can be changed at any time from the top-right selector.
 
  ### Compact Command:
  ```PowerShell
- irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1' | iex
+ irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1' | iex
  ```
 
 
@@ -107,13 +107,13 @@ The UI includes an English / 繁體中文 language selector. Traditional Chinese
 ### 啟動圖形介面
 
 ```PowerShell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1")))
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1")))
 ```
 
 ### 精簡啟動指令
 
 ```PowerShell
-irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1' | iex
+irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1' | iex
 ```
 
 ### 常用命令列範例
@@ -121,19 +121,19 @@ irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindows
 執行全部移除選項：
 
 ```PowerShell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
 ```
 
 啟用備份模式後執行全部選項（會建立系統還原點）：
 
 ```PowerShell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
 ```
 
 還原先前套用的變更：
 
 ```PowerShell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
 ```
 
 > [!CAUTION]
@@ -145,19 +145,19 @@ irm 'https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindows
 
 **Run in Non-Interactive Mode with All Options**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
  ```
 
 --- 
 
 **Run with Specific Options Example**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies
  ```
 
  **Run with Specific Options Excluded Example**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -ExcludeOptions -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -ExcludeOptions -Options DisableRegKeys,RemoveAppxPackages,DisableCopilotPolicies
  ```
 
 **All Possible Options:**
@@ -177,7 +177,7 @@ UpdateCleanupCheck
 
 **Run Install Classic Apps**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -InstallClassicApps photoviewer,mspaint,snippingtool,notepad
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -InstallClassicApps photoviewer,mspaint,snippingtool,notepad
  ```
 
 **All Possible Options:**
@@ -197,7 +197,7 @@ photoslegacy
 > 
 > **This creates a restore point for you**
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -backupMode -AllOptions
  ```
 
 ---
@@ -205,7 +205,7 @@ photoslegacy
 **Revert Changes**
 
  ```PowerShell
- & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
+ & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ma4980/RemoveWindowsAI/refs/heads/main/RemoveWindowsAi.ps1"))) -nonInteractive -revertMode -AllOptions
  ```
 
 ---
